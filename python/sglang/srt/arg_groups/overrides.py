@@ -559,7 +559,7 @@ def _check_dsa_backend_constraints(
     chosen = {prefill_backend, decode_backend}
 
     rocm_only = {"triton"} & chosen
-    if not hip and rocm_only:
+    if not hip and rocm_only and not get_platform().is_sm120:
         raise ValueError(
             f"The {'/'.join(sorted(rocm_only))} DSA backend is only supported on "
             "ROCm/HIP. Pick an alternative DSA backend for CUDA "

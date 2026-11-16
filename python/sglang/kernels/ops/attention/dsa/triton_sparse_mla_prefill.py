@@ -73,15 +73,19 @@ def _sparse_mla_prefill_kernel(
     h = tl.arange(0, BLOCK_H)
     hmask = h < H
     dv = tl.arange(0, D_V)
-    dt = tl.arange(0, D_TAIL)
+    if D_TAIL > 0:
+        dt = tl.arange(0, D_TAIL)
 
     qb = q_ptr + t64 * H * D_QK
     q_main = tl.load(
         qb + h[:, None] * D_QK + dv[None, :], mask=hmask[:, None], other=0.0
     )
-    q_tail = tl.load(
-        qb + h[:, None] * D_QK + (D_V + dt)[None, :], mask=hmask[:, None], other=0.0
-    )
+    if D_TAIL > 0:
+        q_tail = tl.load(
+            qb + h[:, None] * D_QK + (D_V + dt)[None, :],
+            mask=hmask[:, None],
+            other=0.0,
+        )
 
     m_i = tl.full([BLOCK_H], -float("inf"), tl.float32)
     l_i = tl.zeros([BLOCK_H], tl.float32)
@@ -98,10 +102,13 @@ def _sparse_mla_prefill_kernel(
             row = tl.where(valid, idx, 0)
         kb = kv_ptr + row[:, None] * D_QK
         kv_main = tl.load(kb + dv[None, :], mask=valid[:, None], other=0.0)
-        kv_tail = tl.load(kb + (D_V + dt)[None, :], mask=valid[:, None], other=0.0)
+        if D_TAIL > 0:
+            kv_tail = tl.load(kb + (D_V + dt)[None, :], mask=valid[:, None], other=0.0)
 
         qk = tl.dot(q_main, tl.trans(kv_main))
-        qk = tl.dot(q_tail, tl.trans(kv_tail), qk) * sm_scale
+        if D_TAIL > 0:
+            qk = tl.dot(q_tail, tl.trans(kv_tail), qk)
+        qk *= sm_scale
         qk = tl.where(valid[None, :], qk, -float("inf"))
 
         m_new = tl.maximum(m_i, tl.max(qk, axis=1))
@@ -225,11 +232,13 @@ def _sparse_mla_prefill_union_kernel(
     r = tl.arange(0, GH)
     tok_of_row = r // H
     dv = tl.arange(0, D_V)
-    dt = tl.arange(0, D_TAIL)
+    if D_TAIL > 0:
+        dt = tl.arange(0, D_TAIL)
 
     qb = q_ptr + g.to(tl.int64) * GH * D_QK
     q_main = tl.load(qb + r[:, None] * D_QK + dv[None, :])
-    q_tail = tl.load(qb + r[:, None] * D_QK + (D_V + dt)[None, :])
+    if D_TAIL > 0:
+        q_tail = tl.load(qb + r[:, None] * D_QK + (D_V + dt)[None, :])
 
     m_i = tl.full([GH], -float("inf"), tl.float32)
     l_i = tl.zeros([GH], tl.float32)
@@ -246,12 +255,17 @@ def _sparse_mla_prefill_union_kernel(
         row = tl.where(valid, uidx, 0).to(tl.int64)
         kb = kv_ptr + row * D_QK
         kv_main = tl.load(kb[:, None] + dv[None, :], mask=valid[:, None], other=0.0)
-        kv_tail = tl.load(
-            kb[:, None] + (D_V + dt)[None, :], mask=valid[:, None], other=0.0
-        )
+        if D_TAIL > 0:
+            kv_tail = tl.load(
+                kb[:, None] + (D_V + dt)[None, :],
+                mask=valid[:, None],
+                other=0.0,
+            )
 
         qk = tl.dot(q_main, tl.trans(kv_main))
-        qk = tl.dot(q_tail, tl.trans(kv_tail), qk) * sm_scale
+        if D_TAIL > 0:
+            qk = tl.dot(q_tail, tl.trans(kv_tail), qk)
+        qk *= sm_scale
         sel = ((bits[None, :] >> tok_of_row[:, None]) & 1) != 0
         qk = tl.where(sel & valid[None, :], qk, -float("inf"))
 

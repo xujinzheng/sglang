@@ -382,11 +382,10 @@ def _validate_triton_sparse_mla_backend(
             f"num_q_heads={num_q_heads}. Raise the attention TP degree or use "
             "another DSA prefill backend."
         )
-    if index_kpool > 1:
+    if index_kpool not in (1, 4):
         raise ValueError(
-            "triton_sparse_mla does not support index_kpool > 1 (the pooled "
-            f"indexer appends tail tokens to topk_indices); got {index_kpool}. "
-            "Use flashmla_sparse, which reroutes the tail."
+            "triton_sparse_mla is validated for index_kpool 1 and 4; "
+            f"got {index_kpool}."
         )
     if union not in (0, 2, 4):
         raise ValueError(f"--dsa-triton-union must be 0, 2 or 4; got {union}.")

@@ -3,6 +3,8 @@ from sglang.test.ci.ci_register import register_cpu_ci
 register_cpu_ci(est_time=15, suite="base-a-test-cpu")
 
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 from prometheus_client import REGISTRY
@@ -15,6 +17,13 @@ UNKNOWN_PATH = "/__no_such_route__"
 
 
 class TestHttpRequestMetrics(CustomTestCase):
+    def test_healthz_reports_tokenizer_readiness(self):
+        manager = SimpleNamespace(is_ready=lambda: True)
+        state = SimpleNamespace(tokenizer_manager=manager)
+        with patch.object(http_server, "_global_state", state):
+            response = TestClient(http_server.app).get("/healthz")
+        self.assertEqual(response.status_code, 200)
+
     def test_module_level_app_records_requests(self):
         # Tokenizer workers re-import http_server and serve its module-level app,
         # so the middleware must be on it, while the metrics must wait for

@@ -52,6 +52,10 @@ class DeepseekSparseAttnBackendKPoolMixin:
             topk_indices is None
             or self.dsa_index_kpool <= 1
             or dsa_impl in ("fa3", "tilelang", "trtllm")
+            or (
+                not self.dsa_kv_cache_store_fp8
+                and dsa_impl in ("triton", "triton_sparse_mla")
+            )
         ):
             return
         raise NotImplementedError(
