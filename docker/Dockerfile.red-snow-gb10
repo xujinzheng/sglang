@@ -1,0 +1,20 @@
+ARG BASE_IMAGE=lmsysorg/sglang:v0.5.23-cu130@sha256:7f132b890eb6d55f6a8ded87f85e359434878d0fb7f6758582cf759ffb35b5d8
+FROM ${BASE_IMAGE}
+
+ARG SGLANG_FORK_COMMIT=f07b6da21ea15f0140defbd5cc2e47f84e806a8a
+LABEL org.opencontainers.image.revision=${SGLANG_FORK_COMMIT}
+
+COPY python/sglang/kernels/ops/attention/dsa/triton_sparse_mla.py \
+     /sgl-workspace/sglang/python/sglang/kernels/ops/attention/dsa/triton_sparse_mla.py
+COPY python/sglang/kernels/ops/attention/dsa/triton_sparse_mla_prefill.py \
+     /sgl-workspace/sglang/python/sglang/kernels/ops/attention/dsa/triton_sparse_mla_prefill.py
+COPY python/sglang/kernels/ops/attention/linear/fused_sigmoid_gating_recurrent.py \
+     /sgl-workspace/sglang/python/sglang/kernels/ops/attention/linear/fused_sigmoid_gating_recurrent.py
+COPY python/sglang/srt/arg_groups/overrides.py \
+     /sgl-workspace/sglang/python/sglang/srt/arg_groups/overrides.py
+COPY python/sglang/srt/entrypoints/http_server.py \
+     /sgl-workspace/sglang/python/sglang/srt/entrypoints/http_server.py
+COPY python/sglang/srt/layers/attention/dsa/dsa_backend_kpool.py \
+     /sgl-workspace/sglang/python/sglang/srt/layers/attention/dsa/dsa_backend_kpool.py
+COPY python/sglang/srt/layers/attention/dsa_backend.py \
+     /sgl-workspace/sglang/python/sglang/srt/layers/attention/dsa_backend.py
